@@ -39,15 +39,17 @@ void getZedPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
 {
   g_mutex.lock();
 
+  g_people_position_msg.people_position.clear();
+
   if((g_detected_people_position_array.bounding_boxes.size() == 0)
       || ((msg->header.stamp.toSec() - g_detected_people_position_array.header.stamp.toSec()) > 1.0))
   {
     ROS_INFO("There is no people");
     g_mutex.unlock();
+    g_robot_pose_pub.publish(g_people_position_msg);
     return;
   }
 
-  g_people_position_msg.people_position.clear();
 
   int width = msg->width;
   int height = msg->height;
