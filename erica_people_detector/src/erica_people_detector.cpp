@@ -14,11 +14,16 @@
 #include <boost/thread.hpp>
 
 #include "darknet_ros_msgs/BoundingBoxes.h"
+#include "erica_perception_msgs/PeoplePositionArray.h"
 
 
 boost::mutex g_mutex;
 
 darknet_ros_msgs::BoundingBoxes g_detected_people_position_array;
+
+
+ros::Publisher g_robot_pose_pub;
+erica_perception_msgs::PeoplePositionArray g_people_position_msg;
 
 void getDetectedPeoplePixelPositionCallback(const darknet_ros_msgs::BoundingBoxes::ConstPtr& msg)
 {
@@ -42,6 +47,8 @@ void getZedPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
     return;
   }
 
+  g_people_position_msg.people_position.clear();
+
   int width = msg->width;
   int height = msg->height;
 
@@ -57,6 +64,8 @@ void getZedPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
   sensor_msgs::PointCloud cloud;
   sensor_msgs::convertPointCloud2ToPointCloud(*msg, cloud);
 
+  geometry_msgs::Point32 person;
+
   for(int idx =0; idx < g_detected_people_position_array.bounding_boxes.size() ; idx++)
   {
     int u = (g_detected_people_position_array.bounding_boxes[idx].xmin + g_detected_people_position_array.bounding_boxes[idx].xmax)/2;
@@ -66,12 +75,15 @@ void getZedPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
     ROS_INFO_STREAM( idx <<" " << cloud.points[depthIdx].x << " "
         << cloud.points[depthIdx].y << " "
         << cloud.points[depthIdx].z );
+
+    person.x = cloud.points[depthIdx].x;
+    person.y = cloud.points[depthIdx].y;
+    person.z = cloud.points[depthIdx].z;
+
+    g_people_position_msg.people_position.push_back(person);
   }
 
-
-
-
-
+  g_robot_pose_pub.publish(g_people_position_msg);
 
 
   ////    ROS_INFO_STREAM("Detect Size : " << g_detected_people_position_array.bounding_boxes.size()
@@ -112,6 +124,7 @@ int main(int argc, char **argv)
 
   ros::Subscriber detected_people_sub = nh.subscribe("/darknet_ros/bounding_boxes", 1, getDetectedPeoplePixelPositionCallback);
   ros::Subscriber point_cloud_sub     = nh.subscribe("/point_cloud/cloud_registered", 1, getZedPointCloudCallback);
+  g_robot_pose_pub = nh.advertise<erica_perception_msgs::PeoplePositionArray>("/erica/people_position", 1);
 
   ros::spin();
   return 0;

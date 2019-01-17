@@ -13,7 +13,9 @@ project(erica_people_detector)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   sensor_msgs
+  geometry_msgs
   darknet_ros_msgs
+  erica_perception_msgs
 )
 
 find_package(Boost REQUIRED COMPONENTS thread)
@@ -41,7 +43,9 @@ catkin_package(
   CATKIN_DEPENDS
     roscpp
     sensor_msgs
+    geometry_msgs
     darknet_ros_msgs
+    erica_perception_msgs
   DEPENDS Boost #EIGEN3
 )
 
