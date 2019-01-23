@@ -125,7 +125,7 @@ int main(int argc, char **argv)
   ros::NodeHandle nh;
 
   ros::Subscriber detected_people_sub = nh.subscribe("/darknet_ros/bounding_boxes", 1, getDetectedPeoplePixelPositionCallback);
-  ros::Subscriber point_cloud_sub     = nh.subscribe("/point_cloud/cloud_registered", 1, getZedPointCloudCallback);
+  ros::Subscriber point_cloud_sub     = nh.subscribe("/zed/point_cloud/cloud_registered", 1, getZedPointCloudCallback);
   g_robot_pose_pub = nh.advertise<erica_perception_msgs::PeoplePositionArray>("/erica/people_position", 1);
 
   ros::spin();
