@@ -47,6 +47,8 @@ void getZedPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
 
   g_people_position_msg.people_position.clear();
   g_people_position_msg.box_size.clear();
+  g_people_position_msg.pixel_x.clear();
+  g_people_position_msg.pixel_y.clear();
 
   if((g_detected_people_position_array.bounding_boxes.size() == 0)
       || ((ros::Time::now().toSec() - g_detected_people_position_array.header.stamp.toSec()) > 1.0)
