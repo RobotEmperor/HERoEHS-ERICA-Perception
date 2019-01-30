@@ -12,6 +12,8 @@ project(erica_people_detector)
 ################################################################################
 find_package(catkin REQUIRED COMPONENTS
   roscpp
+  tf2_ros
+  tf2_eigen
   sensor_msgs
   geometry_msgs
   darknet_ros_msgs
@@ -19,8 +21,11 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 find_package(Boost REQUIRED COMPONENTS thread)
-find_package(ZED 2.3)
-find_package(CUDA)
+
+#find_package(PCL REQUIRED)
+
+#find_package(ZED 2.3)
+#find_package(CUDA)
 
 ################################################################################
 # Setup for python modules and scripts
@@ -46,7 +51,8 @@ catkin_package(
     geometry_msgs
     darknet_ros_msgs
     erica_perception_msgs
-  DEPENDS Boost #EIGEN3
+    #pcl_conversions
+  DEPENDS Boost #PCL #EIGEN3
 )
 
 
@@ -57,24 +63,26 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
-  ${ZED_INCLUDE_DIRS}
-  ${CUDA_INCLUDE_DIRS}
+  #${PCL_INCLUDE_DIRS}
+  #${ZED_INCLUDE_DIRS}
+  #${CUDA_INCLUDE_DIRS}
 #  ${EIGEN3_INCLUDE_DIRS}
 #  ${YAML_CPP_INCLUDE_DIRS}
 )
 
-if(NOT DEFINED CUDA_NPP_LIBRARIES_ZED)
-    #To deal with cuda 9 nppi libs and previous versions of ZED SDK
-    set(CUDA_NPP_LIBRARIES_ZED ${CUDA_npp_LIBRARY} ${CUDA_npps_LIBRARY} ${CUDA_nppi_LIBRARY})   
-endif()
+#if(NOT DEFINED CUDA_NPP_LIBRARIES_ZED)
+#    #To deal with cuda 9 nppi libs and previous versions of ZED SDK
+#    set(CUDA_NPP_LIBRARIES_ZED ${CUDA_npp_LIBRARY} ${CUDA_npps_LIBRARY} ${CUDA_nppi_LIBRARY})   
+#endif()
 
 
 add_definitions(-std=c++11)
 set(LINK_LIBRARIES
   ${catkin_LIBRARIES}
-  ${ZED_LIBRARIES}
-  ${CUDA_LIBRARIES} ${CUDA_NPP_LIBRARIES_ZED}
-  )
+#  ${PCL_LIBRARIES}
+#  ${ZED_LIBRARIES}
+#  ${CUDA_LIBRARIES} ${CUDA_NPP_LIBRARIES_ZED}
+)
 
 add_executable(${PROJECT_NAME} src/erica_people_detector.cpp)
 add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

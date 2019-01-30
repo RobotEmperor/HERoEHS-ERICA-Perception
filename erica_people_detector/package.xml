@@ -14,5 +14,6 @@
   <depend>geometry_msgs</depend>
   <depend>darknet_ros_msgs</depend>
   <depend>erica_perception_msgs</depend>
-
+  <depend>pcl_conversions</depend>
+  <depend>libpcl-all-dev</depend>
 </package>
