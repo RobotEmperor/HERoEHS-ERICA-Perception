@@ -75,6 +75,8 @@ void getZedPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
 
   geometry_msgs::Point32 person;
   std_msgs::Int32 size;
+  std_msgs::Int32 pixel_pos_x;
+  std_msgs::Int32 pixel_pos_y;
   Eigen::Vector3d person_position;
 
   for(int idx =0; idx < g_detected_people_position_array.bounding_boxes.size() ; idx++)
@@ -106,14 +108,23 @@ void getZedPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
     person.y = person_position.y();
     person.z = person_position.z();
 
+    pixel_pos_x.data =  u - width/2;
+    pixel_pos_y.data = -v + height/2;
+
+
     ROS_INFO_STREAM( idx <<" x: " << person.x
         << " y: " << person.y
         << " z: " << person.z
-        << " area : " << area);
+        << " area : " << area
+        << " X :" << pixel_pos_x.data
+        << " y :" << pixel_pos_y.data);
+
 
     g_people_position_msg.people_position.push_back(person);
     g_people_position_msg.box_size.push_back(size);
 
+    g_people_position_msg.pixel_x.push_back(pixel_pos_x);
+    g_people_position_msg.pixel_y.push_back(pixel_pos_y);
   }
 
   g_robot_pose_pub.publish(g_people_position_msg);
@@ -154,7 +165,7 @@ int main(int argc, char **argv)
     g_mutex.lock();
     g_transfrom = tf2::transformToEigen(transformStamped);
     g_mutex.unlock();
-    ROS_INFO_STREAM("tf?:" << transformStamped.transform.translation.z);
+    //ROS_INFO_STREAM("tf?:" << transformStamped.transform.translation.z);
 
     ros::spinOnce();
     rate.sleep();
