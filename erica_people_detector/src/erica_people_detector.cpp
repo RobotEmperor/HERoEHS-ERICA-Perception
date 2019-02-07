@@ -49,6 +49,12 @@ void getZedPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
   g_people_position_msg.box_size.clear();
   g_people_position_msg.pixel_x.clear();
   g_people_position_msg.pixel_y.clear();
+  g_people_position_msg.box_width.clear();
+  g_people_position_msg.box_height.clear();
+  g_people_position_msg.box_size.clear();
+
+  g_people_position_msg.img_width.data  = msg->width;
+  g_people_position_msg.img_height.data = msg->height;
 
   if((g_detected_people_position_array.bounding_boxes.size() == 0)
       || ((ros::Time::now().toSec() - g_detected_people_position_array.header.stamp.toSec()) > 1.0)
@@ -79,6 +85,8 @@ void getZedPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
   std_msgs::Int32 size;
   std_msgs::Int32 pixel_pos_x;
   std_msgs::Int32 pixel_pos_y;
+  std_msgs::Int32 box_width;
+  std_msgs::Int32 box_height;
   Eigen::Vector3d person_position;
 
   for(int idx =0; idx < g_detected_people_position_array.bounding_boxes.size() ; idx++)
@@ -99,6 +107,8 @@ void getZedPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
     person.y = cloud.points[depthIdx].y;
     person.z = cloud.points[depthIdx].z;
     size.data = area;
+    box_width.data  = g_detected_people_position_array.bounding_boxes[idx].xmax - g_detected_people_position_array.bounding_boxes[idx].xmin;
+    box_height.data = g_detected_people_position_array.bounding_boxes[idx].ymax - g_detected_people_position_array.bounding_boxes[idx].ymin;
 
     person_position.coeffRef(0) = person.x;
     person_position.coeffRef(1) = person.y;
@@ -124,7 +134,8 @@ void getZedPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
 
     g_people_position_msg.people_position.push_back(person);
     g_people_position_msg.box_size.push_back(size);
-
+    g_people_position_msg.box_width.push_back(box_width);
+    g_people_position_msg.box_height.push_back(box_height);
     g_people_position_msg.pixel_x.push_back(pixel_pos_x);
     g_people_position_msg.pixel_y.push_back(pixel_pos_y);
   }
