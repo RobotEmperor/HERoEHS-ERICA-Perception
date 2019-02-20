@@ -14,19 +14,22 @@ using namespace erica;
 
 PersonTrackingInfo::PersonTrackingInfo()
 {
-  curr_pos_x_ = NAN;
-  curr_pos_y_ = NAN;
-  curr_pos_z_ = NAN;
+  curr_pos_.x = NAN;
+  curr_pos_.y = NAN;
+  curr_pos_.z = NAN;
 
-  prev_pos_x_ = NAN;
-  prev_pos_y_ = NAN;
-  prev_pos_z_ = NAN;
+  prev_pos_.x = NAN;
+  prev_pos_.y = NAN;
+  prev_pos_.z = NAN;
 
   prev_pixel_pos_x_ = -100000;
   prev_pixel_pos_y_ = -100000;
 
   curr_pixel_pos_x_ = -100000;
   curr_pixel_pos_y_ = -100000;
+
+  curr_size_ = 0;
+  prev_size_ = 0;
 
   last_update_time_sec_ = 0;
   is_updated_ = false;
@@ -38,13 +41,13 @@ PersonTrackingInfo::~PersonTrackingInfo()
 
 void PersonTrackingInfo::initialize()
 {
-  curr_pos_x_ = NAN;
-  curr_pos_y_ = NAN;
-  curr_pos_z_ = NAN;
+  curr_pos_.x = NAN;
+  curr_pos_.y = NAN;
+  curr_pos_.z = NAN;
 
-  prev_pos_x_ = NAN;
-  prev_pos_y_ = NAN;
-  prev_pos_z_ = NAN;
+  prev_pos_.x = NAN;
+  prev_pos_.y = NAN;
+  prev_pos_.z = NAN;
 
   prev_pixel_pos_x_ = -100000;
   prev_pixel_pos_y_ = -100000;
@@ -52,7 +55,10 @@ void PersonTrackingInfo::initialize()
   curr_pixel_pos_x_ = -100000;
   curr_pixel_pos_y_ = -100000;
 
-  last_update_time_sec_ = 0;
+  curr_size_ = 0;
+  prev_size_ = 0;
+
+  last_update_time_sec_ = ros::Time::now().toSec();
   is_updated_ = false;
   is_near_ = false;
 }
@@ -87,6 +93,7 @@ void EricaPeopleDetecor::initialize()
 
   tf_thread_ = boost::thread(boost::bind(&EricaPeopleDetecor::getTFThreadFunc, this));
 
+  tracked_person_.initialize();
 }
 
 void EricaPeopleDetecor::getDetectedPeoplePixelPositionCallback(const darknet_ros_msgs::BoundingBoxes::ConstPtr& msg)
@@ -267,17 +274,21 @@ void EricaPeopleDetecor::process2()
   if(checkError() == false)
   {
     process_mutex_.unlock();
+    person_pose_pub_.publish(people_position_msg_);
     return;
   }
 
   erica_perception_msgs::PeoplePositionArray people_position;
 
+
+  PersonTrackingInfo temp_person;
   geometry_msgs::Point32 person;
   std_msgs::Int32 size;
   std_msgs::Int32 pixel_pos_x, pixel_pos_y;
   std_msgs::Int32 box_width, box_height;
   Eigen::Vector3d vec_person_position;
   Eigen::Affine3d mat_base_to_l_cam;
+  double distance_from_robot = 10.0;
 
   if(detected_people_position_array_.bounding_boxes.size() == 0)
   {
@@ -313,14 +324,22 @@ void EricaPeopleDetecor::process2()
     pixel_pos_x.data =  u - img_width_/2;
     pixel_pos_y.data = -v + img_height_/2;
 
+    if((distance_from_robot < 5.0) || std::isnan(distance_from_robot))
+    {
+      people_position_msg_.people_position.push_back(person);
+      temp_person.curr_pos_ = person;
 
-    vec_person_position.norm();
-    people_position_msg_.people_position.push_back(person);
-    people_position_msg_.box_size.push_back(size);
-    people_position_msg_.box_width.push_back(box_width);
-    people_position_msg_.box_height.push_back(box_height);
-    people_position_msg_.pixel_x.push_back(pixel_pos_x);
-    people_position_msg_.pixel_y.push_back(pixel_pos_y);
+
+      people_position_msg_.box_size.push_back(size);
+      //temp_person.
+
+      people_position_msg_.box_width.push_back(box_width);
+      people_position_msg_.box_height.push_back(box_height);
+      people_position_msg_.pixel_x.push_back(pixel_pos_x);
+      people_position_msg_.pixel_y.push_back(pixel_pos_y);
+    }
+    else
+      continue;
   }
 
   person_pose_pub_.publish(people_position_msg_);

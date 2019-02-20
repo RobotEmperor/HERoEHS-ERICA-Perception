@@ -32,13 +32,11 @@ public:
 
   void initialize();
 
-  double curr_pos_x_;
-  double curr_pos_y_;
-  double curr_pos_z_;
+  geometry_msgs::Point32 curr_pos_;
+  geometry_msgs::Point32 prev_pos_;
 
-  double prev_pos_x_;
-  double prev_pos_y_;
-  double prev_pos_z_;
+  int curr_size_;
+  int prev_size_;
 
   int prev_pixel_pos_x_;
   int prev_pixel_pos_y_;
@@ -95,6 +93,7 @@ private:
   int32_t img_width_, img_height_;
 
   PersonTrackingInfo tracked_person_;
+  std::vector<PersonTrackingInfo> people_buf_;
 
   ros::Subscriber detected_people_sub_;
   ros::Subscriber point_cloud_sub_;
