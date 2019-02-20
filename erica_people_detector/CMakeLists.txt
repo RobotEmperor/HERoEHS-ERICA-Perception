@@ -84,8 +84,13 @@ set(LINK_LIBRARIES
 #  ${CUDA_LIBRARIES} ${CUDA_NPP_LIBRARIES_ZED}
 )
 
-add_executable(${PROJECT_NAME} src/erica_people_detector.cpp)
+add_executable(${PROJECT_NAME} 
+  src/erica_people_detector.cpp
+  src/main.cpp
+)
+
 add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
 target_link_libraries(${PROJECT_NAME} ${LINK_LIBRARIES})
 #target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${Eigen3_LIBRARIES} ${YAML_CPP_LIBRARIES})
 
