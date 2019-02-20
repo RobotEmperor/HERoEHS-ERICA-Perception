@@ -64,6 +64,7 @@ public:
   void getTFThreadFunc();
 
   void process();
+  void process2();
 
   bool checkError();
   void clearMSGtoBePublished();
@@ -72,6 +73,8 @@ public:
   int32_t pixel_distance_threshold_; //pixel coordinate
   int32_t size_threshold_;
   double_t refresh_time_threshold_;  //sec
+  double_t distance_threshold_;
+
 
 private:
   boost::thread   tf_thread_;
@@ -86,7 +89,6 @@ private:
 
   ros::Publisher robot_pose_pub_;
   erica_perception_msgs::PeoplePositionArray people_position_msg_;
-
 
   bool is_tracking_;
   bool is_initialized_;

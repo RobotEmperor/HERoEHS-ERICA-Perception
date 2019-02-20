@@ -62,6 +62,7 @@ EricaPeopleDetecor::EricaPeopleDetecor()
   pixel_distance_threshold_ = 50; //pixel coordinate
   size_threshold_  = 22500;
   refresh_time_threshold_ = 1.5;  //sec
+  distance_threshold_ = 5.0; //meter
 
   is_tracking_ = false;
   is_initialized_ = false;
@@ -152,6 +153,7 @@ void EricaPeopleDetecor::process()
   if(checkError() == false)
   {
     process_mutex_.unlock();
+    person_pose_pub_.publish(people_position_msg_);
     return;
   }
 
@@ -166,7 +168,7 @@ void EricaPeopleDetecor::process()
   Eigen::Vector3d vec_person_position;
   Eigen::Affine3d mat_base_to_l_cam;
 
-  for(int idx =0; idx < detected_people_position_array_.bounding_boxes.size() ; idx++)
+  for(int idx = 0; idx < detected_people_position_array_.bounding_boxes.size(); idx++)
   {
     int u = (detected_people_position_array_.bounding_boxes[idx].xmin + detected_people_position_array_.bounding_boxes[idx].xmax)/2;
     int v = (detected_people_position_array_.bounding_boxes[idx].ymin + detected_people_position_array_.bounding_boxes[idx].ymax)/2;
@@ -229,12 +231,6 @@ bool EricaPeopleDetecor::checkError()
     return false;
   }
 
-  if(detected_people_position_array_.bounding_boxes.size() == 0)
-  {
-    ROS_WARN("There is no people");
-    return false;
-  }
-
   // check zed_wrapper
   if(zed_cloud_.header.stamp.sec == 0)
   {
@@ -263,3 +259,70 @@ bool EricaPeopleDetecor::checkError()
   return true;
 }
 
+
+void EricaPeopleDetecor::process2()
+{
+  clearMSGtoBePublished();
+  process_mutex_.lock();
+  if(checkError() == false)
+  {
+    process_mutex_.unlock();
+    return;
+  }
+
+  erica_perception_msgs::PeoplePositionArray people_position;
+
+  geometry_msgs::Point32 person;
+  std_msgs::Int32 size;
+  std_msgs::Int32 pixel_pos_x, pixel_pos_y;
+  std_msgs::Int32 box_width, box_height;
+  Eigen::Vector3d vec_person_position;
+  Eigen::Affine3d mat_base_to_l_cam;
+
+  if(detected_people_position_array_.bounding_boxes.size() == 0)
+  {
+    ROS_WARN("There is no people");
+    return;
+  }
+
+  for(int idx = 0; idx < detected_people_position_array_.bounding_boxes.size(); idx++)
+  {
+    int u = (detected_people_position_array_.bounding_boxes[idx].xmin + detected_people_position_array_.bounding_boxes[idx].xmax)/2;
+    int v = (detected_people_position_array_.bounding_boxes[idx].ymin + detected_people_position_array_.bounding_boxes[idx].ymax)/2;
+
+    int area = (detected_people_position_array_.bounding_boxes[idx].xmax - detected_people_position_array_.bounding_boxes[idx].xmin )
+            * (detected_people_position_array_.bounding_boxes[idx].ymax - detected_people_position_array_.bounding_boxes[idx].ymin);
+
+    int depthIdx = u + img_width_ * v;
+
+    vec_person_position.coeffRef(0) = zed_cloud_.points[depthIdx].x;
+    vec_person_position.coeffRef(1) = zed_cloud_.points[depthIdx].y;
+    vec_person_position.coeffRef(2) = zed_cloud_.points[depthIdx].z;
+    size.data = area;
+    box_width.data  = detected_people_position_array_.bounding_boxes[idx].xmax - detected_people_position_array_.bounding_boxes[idx].xmin;
+    box_height.data = detected_people_position_array_.bounding_boxes[idx].ymax - detected_people_position_array_.bounding_boxes[idx].ymin;
+
+
+    mat_base_to_l_cam = tf2::transformToEigen(tf_base_to_l_cam_stamped_);
+    vec_person_position = mat_base_to_l_cam.translation() + mat_base_to_l_cam.rotation()*vec_person_position;
+
+    person.x = vec_person_position.x();
+    person.y = vec_person_position.y();
+    person.z = vec_person_position.z();
+
+    pixel_pos_x.data =  u - img_width_/2;
+    pixel_pos_y.data = -v + img_height_/2;
+
+
+    vec_person_position.norm();
+    people_position_msg_.people_position.push_back(person);
+    people_position_msg_.box_size.push_back(size);
+    people_position_msg_.box_width.push_back(box_width);
+    people_position_msg_.box_height.push_back(box_height);
+    people_position_msg_.pixel_x.push_back(pixel_pos_x);
+    people_position_msg_.pixel_y.push_back(pixel_pos_y);
+  }
+
+  person_pose_pub_.publish(people_position_msg_);
+  process_mutex_.unlock();
+}
