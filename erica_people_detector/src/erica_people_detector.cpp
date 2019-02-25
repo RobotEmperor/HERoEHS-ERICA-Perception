@@ -429,7 +429,7 @@ void EricaPeopleDetecor::process2()
     for(int idx = 1; idx < detected_people.people_position.size(); idx++)
     {
       if((tracked_person_.curr_pos_.x*tracked_person_.curr_pos_.x + tracked_person_.curr_pos_.y*tracked_person_.curr_pos_.y)
-          > (detected_people.people_position[idx].x*detected_people.people_position[idx].x + detected_people.people_position[idx].y + detected_people.people_position[idx].y))
+          > (detected_people.people_position[idx].x*detected_people.people_position[idx].x + detected_people.people_position[idx].y*detected_people.people_position[idx].y))
       {
         tracked_person_.curr_pos_.x = detected_people.people_position[idx].x;
         tracked_person_.curr_pos_.y = detected_people.people_position[idx].y;
@@ -476,7 +476,7 @@ void EricaPeopleDetecor::process2()
         double curr_dist_diff
         = sqrt((detected_people.people_position[idx].x - tracked_person_.curr_pos_.x)*(detected_people.people_position[idx].x - tracked_person_.curr_pos_.x)
             + (detected_people.people_position[idx].y - tracked_person_.curr_pos_.y)*(detected_people.people_position[idx].y - tracked_person_.curr_pos_.y));
-
+        ROS_INFO_STREAM("curr_dist_diff : " << curr_dist_diff);
         if((curr_dist_diff < distance_threshold_) && (curr_dist_diff < prev_dist_diff))
         {
           tracked_person_.curr_pos_.x = detected_people.people_position[idx].x;
