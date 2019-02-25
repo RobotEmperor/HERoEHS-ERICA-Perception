@@ -225,7 +225,7 @@ int main(int argc, char **argv)
   ros::Rate rate(freq);
   while(ros::ok())
   {
-    erica_people_detector.process();
+    erica_people_detector.process2();
     ros::spinOnce();
     rate.sleep();
   }

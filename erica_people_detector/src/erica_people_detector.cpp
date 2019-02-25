@@ -17,23 +17,27 @@ PersonTrackingInfo::PersonTrackingInfo()
   curr_pos_.x = NAN;
   curr_pos_.y = NAN;
   curr_pos_.z = NAN;
+  curr_pixel_pos_x_ = -100000;
+  curr_pixel_pos_y_ = -100000;
+  curr_box_size_ = -1;
+  curr_box_width_ = -1;
+  curr_box_height_ = -1;
+
 
   prev_pos_.x = NAN;
   prev_pos_.y = NAN;
   prev_pos_.z = NAN;
-
   prev_pixel_pos_x_ = -100000;
   prev_pixel_pos_y_ = -100000;
+  prev_box_size_ = -1;
+  prev_box_width_ = -1;
+  prev_box_height_ = -1;
 
-  curr_pixel_pos_x_ = -100000;
-  curr_pixel_pos_y_ = -100000;
-
-  curr_size_ = 0;
-  prev_size_ = 0;
 
   last_update_time_sec_ = 0;
   is_updated_ = false;
   is_near_ = false;
+  near_time_sec_ = 0;
 }
 
 PersonTrackingInfo::~PersonTrackingInfo()
@@ -44,31 +48,35 @@ void PersonTrackingInfo::initialize()
   curr_pos_.x = NAN;
   curr_pos_.y = NAN;
   curr_pos_.z = NAN;
+  curr_pixel_pos_x_ = -100000;
+  curr_pixel_pos_y_ = -100000;
+  curr_box_size_ = -1;
+  curr_box_width_ = -1;
+  curr_box_height_ = -1;
+
 
   prev_pos_.x = NAN;
   prev_pos_.y = NAN;
   prev_pos_.z = NAN;
-
   prev_pixel_pos_x_ = -100000;
   prev_pixel_pos_y_ = -100000;
+  prev_box_size_ = -1;
+  prev_box_width_ = -1;
+  prev_box_height_ = -1;
 
-  curr_pixel_pos_x_ = -100000;
-  curr_pixel_pos_y_ = -100000;
-
-  curr_size_ = 0;
-  prev_size_ = 0;
-
-  last_update_time_sec_ = ros::Time::now().toSec();
+  last_update_time_sec_ = 0;
   is_updated_ = false;
   is_near_ = false;
+  near_time_sec_ = 0;
 }
 
 EricaPeopleDetecor::EricaPeopleDetecor()
 {
   pixel_distance_threshold_ = 50; //pixel coordinate
-  size_threshold_  = 22500;
-  refresh_time_threshold_ = 1.5;  //sec
-  distance_threshold_ = 5.0; //meter
+  min_size_  = 20000;
+  refresh_time_threshold_ = 2.0;  //sec
+  distance_threshold_ = 0.5; //meter
+  max_distance_ = 5.0;
 
   is_tracking_ = false;
   is_initialized_ = false;
@@ -93,7 +101,9 @@ void EricaPeopleDetecor::initialize()
 
   tf_thread_ = boost::thread(boost::bind(&EricaPeopleDetecor::getTFThreadFunc, this));
 
+  is_tracking_ = false;
   tracked_person_.initialize();
+  is_initialized_ = true;
 }
 
 void EricaPeopleDetecor::getDetectedPeoplePixelPositionCallback(const darknet_ros_msgs::BoundingBoxes::ConstPtr& msg)
@@ -278,10 +288,10 @@ void EricaPeopleDetecor::process2()
     return;
   }
 
-  erica_perception_msgs::PeoplePositionArray people_position;
+  erica_perception_msgs::PeoplePositionArray detected_people;
+  detected_people.img_height.data = img_height_;
+  detected_people.img_width.data = img_width_;
 
-
-  PersonTrackingInfo temp_person;
   geometry_msgs::Point32 person;
   std_msgs::Int32 size;
   std_msgs::Int32 pixel_pos_x, pixel_pos_y;
@@ -290,10 +300,14 @@ void EricaPeopleDetecor::process2()
   Eigen::Affine3d mat_base_to_l_cam;
   double distance_from_robot = 10.0;
 
-  if(detected_people_position_array_.bounding_boxes.size() == 0)
+
+  if(is_tracking_ == false)
   {
-    ROS_WARN("There is no people");
-    return;
+    if(detected_people_position_array_.bounding_boxes.size() == 0)
+    {
+      ROS_WARN("There is no people");
+      return;
+    }
   }
 
   for(int idx = 0; idx < detected_people_position_array_.bounding_boxes.size(); idx++)
@@ -304,15 +318,14 @@ void EricaPeopleDetecor::process2()
     int area = (detected_people_position_array_.bounding_boxes[idx].xmax - detected_people_position_array_.bounding_boxes[idx].xmin )
             * (detected_people_position_array_.bounding_boxes[idx].ymax - detected_people_position_array_.bounding_boxes[idx].ymin);
 
-    int depthIdx = u + img_width_ * v;
-
-    vec_person_position.coeffRef(0) = zed_cloud_.points[depthIdx].x;
-    vec_person_position.coeffRef(1) = zed_cloud_.points[depthIdx].y;
-    vec_person_position.coeffRef(2) = zed_cloud_.points[depthIdx].z;
     size.data = area;
     box_width.data  = detected_people_position_array_.bounding_boxes[idx].xmax - detected_people_position_array_.bounding_boxes[idx].xmin;
     box_height.data = detected_people_position_array_.bounding_boxes[idx].ymax - detected_people_position_array_.bounding_boxes[idx].ymin;
 
+    int depthIdx = u + img_width_ * v;
+    vec_person_position.coeffRef(0) = zed_cloud_.points[depthIdx].x;
+    vec_person_position.coeffRef(1) = zed_cloud_.points[depthIdx].y;
+    vec_person_position.coeffRef(2) = zed_cloud_.points[depthIdx].z;
 
     mat_base_to_l_cam = tf2::transformToEigen(tf_base_to_l_cam_stamped_);
     vec_person_position = mat_base_to_l_cam.translation() + mat_base_to_l_cam.rotation()*vec_person_position;
@@ -324,24 +337,265 @@ void EricaPeopleDetecor::process2()
     pixel_pos_x.data =  u - img_width_/2;
     pixel_pos_y.data = -v + img_height_/2;
 
-    if((distance_from_robot < 5.0) || std::isnan(distance_from_robot))
+
+    distance_from_robot = sqrt(person.x * person.x + person.y * person.y);
+
+    if(is_tracking_ == false)
     {
-      people_position_msg_.people_position.push_back(person);
-      temp_person.curr_pos_ = person;
+      if(distance_from_robot < max_distance_)
+      {
+        detected_people.people_position.push_back(person);
+        detected_people.box_size.push_back(size);
 
+        detected_people.box_width.push_back(box_width);
+        detected_people.box_height.push_back(box_height);
+        detected_people.pixel_x.push_back(pixel_pos_x);
+        detected_people.pixel_y.push_back(pixel_pos_y);
+      }
+      else
+        continue;
+    }
+    else
+    {
+      if((distance_from_robot < max_distance_)
+          || (std::isnan(distance_from_robot) && size.data > min_size_) )
+      {
+        detected_people.people_position.push_back(person);
+        detected_people.box_size.push_back(size);
 
+        detected_people.box_width.push_back(box_width);
+        detected_people.box_height.push_back(box_height);
+        detected_people.pixel_x.push_back(pixel_pos_x);
+        detected_people.pixel_y.push_back(pixel_pos_y);
+      }
+      else
+        continue;
+    }
+
+  }
+
+  if(detected_people.box_size.size() == 0)
+  {
+    if(is_tracking_ == false)
+    {
+      process_mutex_.unlock();
+      person_pose_pub_.publish(people_position_msg_);
+      ROS_WARN("There is no people");
+      return;
+    }
+    else //after 2sec, there is no people;
+    {
+      if( (ros::Time::now().toSec() - tracked_person_.last_update_time_sec_) > refresh_time_threshold_)
+      {
+        is_tracking_ = false;
+        process_mutex_.unlock();
+        person_pose_pub_.publish(people_position_msg_);
+        ROS_WARN("missed the tracked person");
+        return;
+      }
+      else
+      {
+        process_mutex_.unlock();
+        tracked_person_.is_updated_ = false;
+
+        person = tracked_person_.curr_pos_;
+        size.data = tracked_person_.curr_box_size_;
+        pixel_pos_x.data = tracked_person_.curr_pixel_pos_x_;
+        pixel_pos_y.data = tracked_person_.curr_pixel_pos_y_;
+        box_width.data = tracked_person_.curr_box_width_;
+        box_height.data = tracked_person_.curr_box_height_;
+
+        people_position_msg_.people_position.push_back(tracked_person_.curr_pos_);
+        people_position_msg_.box_size.push_back(size);
+        people_position_msg_.box_width.push_back(box_width);
+        people_position_msg_.box_height.push_back(box_height);
+        people_position_msg_.pixel_x.push_back(pixel_pos_x);
+        people_position_msg_.pixel_y.push_back(pixel_pos_y);
+        person_pose_pub_.publish(people_position_msg_);
+
+        ROS_WARN("there is no people, but estimate the person position");
+        return;
+      }
+    }
+  }
+
+  //check the nearest person
+  if(is_tracking_ == false)
+  {
+    tracked_person_.curr_pos_.x = detected_people.people_position[0].x;
+    tracked_person_.curr_pos_.y = detected_people.people_position[1].y;
+    tracked_person_.curr_pos_.z = detected_people.people_position[2].z;
+
+    for(int idx = 1; idx < detected_people.people_position.size(); idx++)
+    {
+      if((tracked_person_.curr_pos_.x*tracked_person_.curr_pos_.x + tracked_person_.curr_pos_.y*tracked_person_.curr_pos_.y)
+          > (detected_people.people_position[idx].x*detected_people.people_position[idx].x + detected_people.people_position[idx].y + detected_people.people_position[idx].y))
+      {
+        tracked_person_.curr_pos_.x = detected_people.people_position[idx].x;
+        tracked_person_.curr_pos_.y = detected_people.people_position[idx].y;
+        tracked_person_.curr_pos_.z = detected_people.people_position[idx].z;
+        tracked_person_.curr_box_width_ = detected_people.box_width[idx].data;
+        tracked_person_.curr_box_height_ = detected_people.box_height[idx].data;
+        tracked_person_.curr_box_size_ = detected_people.box_size[idx].data;
+        tracked_person_.curr_pixel_pos_x_ = detected_people.pixel_x[idx].data;
+        tracked_person_.curr_pixel_pos_y_ = detected_people.pixel_y[idx].data;
+      }
+    }
+
+    is_tracking_ = true;
+
+    tracked_person_.is_updated_ = true;
+    tracked_person_.last_update_time_sec_ = ros::Time::now().toSec();
+    person = tracked_person_.curr_pos_;
+    size.data = tracked_person_.curr_box_size_;
+    pixel_pos_x.data = tracked_person_.curr_pixel_pos_x_;
+    pixel_pos_y.data = tracked_person_.curr_pixel_pos_y_;
+    box_width.data = tracked_person_.curr_box_width_;
+    box_height.data = tracked_person_.curr_box_height_;
+
+    people_position_msg_.people_position.push_back(tracked_person_.curr_pos_);
+    people_position_msg_.box_size.push_back(size);
+    people_position_msg_.box_width.push_back(box_width);
+    people_position_msg_.box_height.push_back(box_height);
+    people_position_msg_.pixel_x.push_back(pixel_pos_x);
+    people_position_msg_.pixel_y.push_back(pixel_pos_y);
+
+    process_mutex_.unlock();
+    person_pose_pub_.publish(people_position_msg_);
+    ROS_WARN("tracking start");
+    return;
+  }
+  else
+  {
+    tracked_person_.is_updated_ = false;
+    double prev_dist_diff = 1000;
+    if(tracked_person_.is_near_ == false)
+    {
+      for(int idx = 0; idx < detected_people.people_position.size(); idx++)
+      {
+        double curr_dist_diff
+        = sqrt((detected_people.people_position[idx].x - tracked_person_.curr_pos_.x)*(detected_people.people_position[idx].x - tracked_person_.curr_pos_.x)
+            + (detected_people.people_position[idx].y - tracked_person_.curr_pos_.y)*(detected_people.people_position[idx].y - tracked_person_.curr_pos_.y));
+
+        if((curr_dist_diff < distance_threshold_) && (curr_dist_diff < prev_dist_diff))
+        {
+          tracked_person_.curr_pos_.x = detected_people.people_position[idx].x;
+          tracked_person_.curr_pos_.y = detected_people.people_position[idx].y;
+          tracked_person_.curr_pos_.z = detected_people.people_position[idx].z;
+          tracked_person_.curr_box_width_ = detected_people.box_width[idx].data;
+          tracked_person_.curr_box_height_ = detected_people.box_height[idx].data;
+          tracked_person_.curr_box_size_ = detected_people.box_size[idx].data;
+          tracked_person_.curr_pixel_pos_x_ = detected_people.pixel_x[idx].data;
+          tracked_person_.curr_pixel_pos_y_ = detected_people.pixel_y[idx].data;
+
+          tracked_person_.is_updated_ = true;
+
+          prev_dist_diff = curr_dist_diff;
+        }
+      }
+
+      if(tracked_person_.is_updated_ == true)
+      {
+        double curr_dist = sqrt(tracked_person_.curr_pos_.x * tracked_person_.curr_pos_.x + tracked_person_.curr_pos_.y * tracked_person_.curr_pos_.y);
+        if(curr_dist < 1.0)
+        {
+          tracked_person_.is_near_ = true;
+          tracked_person_.near_time_sec_ = ros::Time::now().toSec();
+        }
+      }
+    }
+    else
+    {
+      int prev_box_size = detected_people.box_size[0].data;
+      for(int idx = 0; idx < detected_people.people_position.size(); idx++)
+      {
+        int curr_box_size = detected_people.box_size[idx].data;
+
+        if(curr_box_size > prev_box_size)
+        {
+          tracked_person_.curr_pos_.x = detected_people.people_position[idx].x;
+          tracked_person_.curr_pos_.y = detected_people.people_position[idx].y;
+          tracked_person_.curr_pos_.z = detected_people.people_position[idx].z;
+          tracked_person_.curr_box_width_ = detected_people.box_width[idx].data;
+          tracked_person_.curr_box_height_ = detected_people.box_height[idx].data;
+          tracked_person_.curr_box_size_ = detected_people.box_size[idx].data;
+          tracked_person_.curr_pixel_pos_x_ = detected_people.pixel_x[idx].data;
+          tracked_person_.curr_pixel_pos_y_ = detected_people.pixel_y[idx].data;
+
+          tracked_person_.is_updated_ = true;
+
+          prev_box_size = curr_box_size;
+        }
+      }
+    }
+
+    if(tracked_person_.is_updated_ == false)
+    {
+      if(ros::Time::now().toSec() - tracked_person_.last_update_time_sec_ > refresh_time_threshold_)
+      {
+        process_mutex_.unlock();
+        person_pose_pub_.publish(people_position_msg_);
+        ROS_WARN("tracking fail");
+        return;
+      }
+      else
+      {
+        person = tracked_person_.curr_pos_;
+        size.data = tracked_person_.curr_box_size_;
+        pixel_pos_x.data = tracked_person_.curr_pixel_pos_x_;
+        pixel_pos_y.data = tracked_person_.curr_pixel_pos_y_;
+        box_width.data = tracked_person_.curr_box_width_;
+        box_height.data = tracked_person_.curr_box_height_;
+
+        people_position_msg_.people_position.push_back(tracked_person_.curr_pos_);
+        people_position_msg_.box_size.push_back(size);
+        people_position_msg_.box_width.push_back(box_width);
+        people_position_msg_.box_height.push_back(box_height);
+        people_position_msg_.pixel_x.push_back(pixel_pos_x);
+        people_position_msg_.pixel_y.push_back(pixel_pos_y);
+
+        process_mutex_.unlock();
+        person_pose_pub_.publish(people_position_msg_);
+        ROS_WARN("tracking fail. we estimate the tracked person in previous position...");
+        return;
+      }
+    }
+    else
+    {
+//      if(tracked_person_.is_near_ == true)
+//      {
+//       if((ros::Time::now().toSec() - tracked_person_.near_time_sec_) > 10.0)
+//       {
+//         is_tracking_ = false;
+//       }
+//      }
+
+      tracked_person_.last_update_time_sec_ = ros::Time::now().toSec();
+      person = tracked_person_.curr_pos_;
+      size.data = tracked_person_.curr_box_size_;
+      pixel_pos_x.data = tracked_person_.curr_pixel_pos_x_;
+      pixel_pos_y.data = tracked_person_.curr_pixel_pos_y_;
+      box_width.data = tracked_person_.curr_box_width_;
+      box_height.data = tracked_person_.curr_box_height_;
+
+      people_position_msg_.people_position.push_back(tracked_person_.curr_pos_);
       people_position_msg_.box_size.push_back(size);
-      //temp_person.
-
       people_position_msg_.box_width.push_back(box_width);
       people_position_msg_.box_height.push_back(box_height);
       people_position_msg_.pixel_x.push_back(pixel_pos_x);
       people_position_msg_.pixel_y.push_back(pixel_pos_y);
+
+      process_mutex_.unlock();
+      person_pose_pub_.publish(people_position_msg_);
+      ROS_WARN("tracking...");
+      return;
     }
-    else
-      continue;
   }
 
+
+
+
+  ROS_ERROR("upexpected_situation");
   person_pose_pub_.publish(people_position_msg_);
   process_mutex_.unlock();
 }

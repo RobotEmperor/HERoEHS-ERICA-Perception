@@ -32,21 +32,27 @@ public:
 
   void initialize();
 
-  geometry_msgs::Point32 curr_pos_;
   geometry_msgs::Point32 prev_pos_;
-
-  int curr_size_;
-  int prev_size_;
-
+  int prev_box_size_;
+  int prev_box_width_;
+  int prev_box_height_;
   int prev_pixel_pos_x_;
   int prev_pixel_pos_y_;
 
+
+  geometry_msgs::Point32 curr_pos_;
+  int curr_box_size_;
+  int curr_box_width_;
+  int curr_box_height_;
   int curr_pixel_pos_x_;
   int curr_pixel_pos_y_;
 
   double last_update_time_sec_;
   bool is_updated_;
   bool is_near_;
+
+  double near_time_sec_;
+
 };
 
 class EricaPeopleDetecor
@@ -69,10 +75,10 @@ public:
   void publishPeoplePosition();
 
   int32_t pixel_distance_threshold_; //pixel coordinate
-  int32_t size_threshold_;
+  int32_t min_size_;
   double_t refresh_time_threshold_;  //sec
   double_t distance_threshold_;
-
+  double_t max_distance_;
 
 private:
   boost::thread   tf_thread_;
