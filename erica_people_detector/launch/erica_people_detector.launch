@@ -1,0 +1,11 @@
+<?xml version="1.0" ?>
+<launch>      
+  <!-- erica_people_detector -->
+  <node pkg="erica_people_detector" type="erica_people_detector" name="erica_people_detector" output="screen"/>
+    
+  <!-- zed -->
+  <include file="$(find zed_wrapper)/launch/zed_no_tf.launch"/>
+
+  <!-- yolo -->
+  <!--<include file="$(find darknet_ros)/launch/darknet_ros_custom.launch"/>-->
+</launch>
