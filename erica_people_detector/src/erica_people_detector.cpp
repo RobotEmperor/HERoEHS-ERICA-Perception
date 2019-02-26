@@ -678,6 +678,12 @@ void EricaPeopleDetecor::process2()
         //         is_tracking_ = false;
         //       }
         //      }
+        double curr_dist = sqrt(tracked_person_.curr_pos_.x * tracked_person_.curr_pos_.x + tracked_person_.curr_pos_.y * tracked_person_.curr_pos_.y);
+        if((curr_dist > 0.5) && !(std::isnan(curr_dist)))
+        {
+          tracked_person_.is_near_ = false;
+          tracked_person_.near_time_sec_ = ros::Time::now().toSec();
+        }
 
         tracked_person_.last_update_time_sec_ = ros::Time::now().toSec();
         person = tracked_person_.curr_pos_;
