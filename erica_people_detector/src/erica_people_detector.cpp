@@ -143,8 +143,8 @@ void EricaPeopleDetecor::getDetectedPeoplePixelPositionCallback(const darknet_ro
 void EricaPeopleDetecor::getZedPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
 {
   process_mutex_.lock();
-  img_width_  = 1280;
-  img_height_ = 720;
+  img_width_  = msg->width;
+  img_height_ = msg->height;
 
   // Image coordinates of the center pixel
   sensor_msgs::convertPointCloud2ToPointCloud(*msg, zed_cloud_);
