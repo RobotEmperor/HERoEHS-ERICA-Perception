@@ -291,6 +291,8 @@ void EricaPeopleDetecor::process2()
   if(checkError() == false)
   {
     process_mutex_.unlock();
+    is_tracking_ = false;
+    tracked_person_.initialize();
     person_pose_pub_.publish(people_position_msg_);
     return;
   }
@@ -523,7 +525,7 @@ void EricaPeopleDetecor::process2()
         tracked_person_.last_update_time_sec_ = ros::Time::now().toSec();
 
         double curr_dist = sqrt(tracked_person_.curr_pos_.x * tracked_person_.curr_pos_.x + tracked_person_.curr_pos_.y * tracked_person_.curr_pos_.y);
-        if(curr_dist < 5.0)
+        if(curr_dist < 0.5)
         {
           tracked_person_.is_near_ = true;
           tracked_person_.near_time_sec_ = ros::Time::now().toSec();
