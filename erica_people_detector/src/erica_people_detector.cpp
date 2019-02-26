@@ -114,9 +114,11 @@ void EricaPeopleDetecor::getTrackingStartCommandCallback(const std_msgs::String:
   if(msg->data == "start")
     tracking_start_ = true;
   else
+  {
     tracking_start_ = false;
-  is_tracking_ = false;
-  tracked_person_.initialize();
+    is_tracking_ = false;
+    tracked_person_.initialize();
+  }
   process_mutex_.unlock();
 }
 
