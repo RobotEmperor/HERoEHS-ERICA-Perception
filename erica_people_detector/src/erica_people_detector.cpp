@@ -78,6 +78,7 @@ EricaPeopleDetecor::EricaPeopleDetecor()
   distance_threshold_ = 0.5; //meter
   max_distance_ = 5.0;
 
+  tracking_start_ = false;
   is_tracking_ = false;
   is_initialized_ = false;
 
@@ -94,6 +95,7 @@ void EricaPeopleDetecor::initialize()
 {
   ros::NodeHandle nh;
 
+  tracking_start_sub_  = nh.subscribe("/erica/people_tracking_command", 1, &EricaPeopleDetecor::getTrackingStartCommandCallback, this);
   detected_people_sub_ = nh.subscribe("/darknet_ros/bounding_boxes", 1, &EricaPeopleDetecor::getDetectedPeoplePixelPositionCallback, this);
   point_cloud_sub_     = nh.subscribe("/zed/point_cloud/cloud_registered", 1, &EricaPeopleDetecor::getZedPointCloudCallback, this);
 
@@ -104,6 +106,18 @@ void EricaPeopleDetecor::initialize()
   is_tracking_ = false;
   tracked_person_.initialize();
   is_initialized_ = true;
+}
+
+void EricaPeopleDetecor::getTrackingStartCommandCallback(const std_msgs::String::ConstPtr& msg)
+{
+  process_mutex_.lock();
+  if(msg->data == "start")
+    tracking_start_ = true;
+  else
+    tracking_start_ = false;
+  is_tracking_ = false;
+  tracked_person_.initialize();
+  process_mutex_.unlock();
 }
 
 void EricaPeopleDetecor::getDetectedPeoplePixelPositionCallback(const darknet_ros_msgs::BoundingBoxes::ConstPtr& msg)
@@ -279,8 +293,9 @@ bool EricaPeopleDetecor::checkError()
 
 void EricaPeopleDetecor::process2()
 {
-  clearMSGtoBePublished();
+
   process_mutex_.lock();
+  clearMSGtoBePublished();
   tracked_person_.prev_pos_ = tracked_person_.curr_pos_;
   tracked_person_.prev_box_size_ = tracked_person_.curr_box_size_;
   tracked_person_.prev_box_width_ = tracked_person_.curr_box_width_;
@@ -290,10 +305,19 @@ void EricaPeopleDetecor::process2()
 
   if(checkError() == false)
   {
-    process_mutex_.unlock();
     is_tracking_ = false;
     tracked_person_.initialize();
     person_pose_pub_.publish(people_position_msg_);
+    process_mutex_.unlock();
+    return;
+  }
+
+  if(tracking_start_ == false)
+  {
+    is_tracking_ = false;
+    tracked_person_.initialize();
+    person_pose_pub_.publish(people_position_msg_);
+    process_mutex_.unlock();
     return;
   }
 
@@ -307,7 +331,6 @@ void EricaPeopleDetecor::process2()
   std_msgs::Int32 box_width, box_height;
   Eigen::Vector3d vec_person_position;
   Eigen::Affine3d mat_base_to_l_cam;
-
 
 
   if(is_tracking_ == false)
@@ -393,8 +416,8 @@ void EricaPeopleDetecor::process2()
   {
     if(is_tracking_ == false)
     {
-      process_mutex_.unlock();
       person_pose_pub_.publish(people_position_msg_);
+      process_mutex_.unlock();
       ROS_WARN("There is no people");
       return;
     }
@@ -403,15 +426,14 @@ void EricaPeopleDetecor::process2()
       if( (ros::Time::now().toSec() - tracked_person_.last_update_time_sec_) > refresh_time_threshold_)
       {
         is_tracking_ = false;
-        process_mutex_.unlock();
         person_pose_pub_.publish(people_position_msg_);
         tracked_person_.initialize();
+        process_mutex_.unlock();
         ROS_WARN("missed the tracked person");
         return;
       }
       else
       {
-        process_mutex_.unlock();
         tracked_person_.is_updated_ = false;
 
         person = tracked_person_.curr_pos_;
@@ -428,7 +450,7 @@ void EricaPeopleDetecor::process2()
         people_position_msg_.pixel_x.push_back(pixel_pos_x);
         people_position_msg_.pixel_y.push_back(pixel_pos_y);
         person_pose_pub_.publish(people_position_msg_);
-
+        process_mutex_.unlock();
         ROS_WARN("there is no people, but estimate the person position");
         return;
       }
@@ -482,10 +504,10 @@ void EricaPeopleDetecor::process2()
     people_position_msg_.pixel_x.push_back(pixel_pos_x);
     people_position_msg_.pixel_y.push_back(pixel_pos_y);
 
-    process_mutex_.unlock();
     person_pose_pub_.publish(people_position_msg_);
-    ROS_WARN("tracking start");
+    process_mutex_.unlock();
 
+    ROS_WARN("tracking start");
     ROS_INFO_STREAM("Pos : " << tracked_person_.curr_pos_.x  << " " << tracked_person_.curr_pos_.y << " "  << tracked_person_.curr_pos_.z);
 
     return;
@@ -545,8 +567,8 @@ void EricaPeopleDetecor::process2()
         people_position_msg_.pixel_x.push_back(pixel_pos_x);
         people_position_msg_.pixel_y.push_back(pixel_pos_y);
 
-        process_mutex_.unlock();
         person_pose_pub_.publish(people_position_msg_);
+        process_mutex_.unlock();
         ROS_WARN("tracking.... updated pos");
         ROS_INFO_STREAM("Pos : " << tracked_person_.curr_pos_.x  << " " << tracked_person_.curr_pos_.y << " "  << tracked_person_.curr_pos_.z);
         return;
@@ -557,9 +579,9 @@ void EricaPeopleDetecor::process2()
         if( (ros::Time::now().toSec() - tracked_person_.last_update_time_sec_) > refresh_time_threshold_)
         {
           is_tracking_ = false;
-          process_mutex_.unlock();
           person_pose_pub_.publish(people_position_msg_);
           tracked_person_.initialize();
+          process_mutex_.unlock();
           ROS_WARN("missed the tracked person");
           return;
         }
@@ -578,8 +600,8 @@ void EricaPeopleDetecor::process2()
         people_position_msg_.pixel_x.push_back(pixel_pos_x);
         people_position_msg_.pixel_y.push_back(pixel_pos_y);
 
-        process_mutex_.unlock();
         person_pose_pub_.publish(people_position_msg_);
+        process_mutex_.unlock();
         ROS_WARN("far tracking fail. we estimate the tracked person in previous position... ");
         return;
       }
@@ -616,11 +638,11 @@ void EricaPeopleDetecor::process2()
       {
         if(ros::Time::now().toSec() - tracked_person_.last_update_time_sec_ > refresh_time_threshold_)
         {
-          process_mutex_.unlock();
-          person_pose_pub_.publish(people_position_msg_);
-          ROS_WARN("tracking fail");
           is_tracking_ = false;
           tracked_person_.initialize();
+          person_pose_pub_.publish(people_position_msg_);
+          process_mutex_.unlock();
+          ROS_WARN("tracking fail");
           return;
         }
         else
@@ -639,8 +661,8 @@ void EricaPeopleDetecor::process2()
           people_position_msg_.pixel_x.push_back(pixel_pos_x);
           people_position_msg_.pixel_y.push_back(pixel_pos_y);
 
-          process_mutex_.unlock();
           person_pose_pub_.publish(people_position_msg_);
+          process_mutex_.unlock();
           ROS_WARN("near tracking fail. we estimate the tracked person in previous position...");
           return;
         }
@@ -670,8 +692,8 @@ void EricaPeopleDetecor::process2()
         people_position_msg_.pixel_x.push_back(pixel_pos_x);
         people_position_msg_.pixel_y.push_back(pixel_pos_y);
 
-        process_mutex_.unlock();
         person_pose_pub_.publish(people_position_msg_);
+        process_mutex_.unlock();
         ROS_WARN("near tracking...");
         return;
       }
