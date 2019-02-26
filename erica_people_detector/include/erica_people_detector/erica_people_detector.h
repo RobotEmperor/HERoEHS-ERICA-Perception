@@ -83,6 +83,8 @@ public:
   double_t distance_threshold_;
   double_t max_distance_;
 
+  double_t near_ref_;
+
 private:
   boost::thread   tf_thread_;
 
@@ -102,6 +104,8 @@ private:
   bool is_initialized_;
   int32_t img_width_, img_height_;
 
+  int32_t near_points_num_;
+
   PersonTrackingInfo tracked_person_;
   std::vector<PersonTrackingInfo> people_buf_;
 
@@ -110,6 +114,7 @@ private:
   ros::Subscriber tracking_start_sub_;
 
   ros::Publisher person_pose_pub_;
+  ros::Publisher near_points_num_pub_;
 
 };
 

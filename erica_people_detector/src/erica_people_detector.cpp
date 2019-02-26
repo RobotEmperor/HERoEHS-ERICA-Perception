@@ -84,6 +84,9 @@ EricaPeopleDetecor::EricaPeopleDetecor()
 
   img_width_ = 1280;
   img_height_ = 720;
+
+  near_points_num_ = -1;
+  near_ref_ = 0.8;
 }
 
 EricaPeopleDetecor::~EricaPeopleDetecor()
@@ -100,6 +103,7 @@ void EricaPeopleDetecor::initialize()
   point_cloud_sub_     = nh.subscribe("/zed/point_cloud/cloud_registered", 1, &EricaPeopleDetecor::getZedPointCloudCallback, this);
 
   person_pose_pub_ = nh.advertise<erica_perception_msgs::PeoplePositionArray>("/erica/people_position", 1);
+  near_points_num_pub_ = nh.advertise<std_msgs::Int32>("/erica/near_points_num", 1);
 
   tf_thread_ = boost::thread(boost::bind(&EricaPeopleDetecor::getTFThreadFunc, this));
 
@@ -295,7 +299,6 @@ bool EricaPeopleDetecor::checkError()
 
 void EricaPeopleDetecor::process2()
 {
-
   process_mutex_.lock();
   clearMSGtoBePublished();
   tracked_person_.prev_pos_ = tracked_person_.curr_pos_;
@@ -304,6 +307,37 @@ void EricaPeopleDetecor::process2()
   tracked_person_.prev_box_height_ = tracked_person_.curr_box_height_;
   tracked_person_.prev_pixel_pos_x_ = tracked_person_.curr_pixel_pos_x_;
   tracked_person_.prev_pixel_pos_y_ = tracked_person_.curr_pixel_pos_y_;
+
+  erica_perception_msgs::PeoplePositionArray detected_people;
+  detected_people.img_height.data = img_height_;
+  detected_people.img_width.data = img_width_;
+
+  geometry_msgs::Point32 person;
+  std_msgs::Int32 size;
+  std_msgs::Int32 pixel_pos_x, pixel_pos_y;
+  std_msgs::Int32 box_width, box_height;
+  Eigen::Vector3d vec_person_position;
+  Eigen::Affine3d mat_base_to_l_cam;
+
+  mat_base_to_l_cam = tf2::transformToEigen(tf_base_to_l_cam_stamped_);
+
+  near_points_num_ = 0;
+  for(int idx = 0; idx < zed_cloud_.points.size(); idx++)
+  {
+    vec_person_position.coeffRef(0) = zed_cloud_.points[idx].x;
+    vec_person_position.coeffRef(1) = zed_cloud_.points[idx].y;
+    vec_person_position.coeffRef(2) = zed_cloud_.points[idx].z;
+
+    vec_person_position = mat_base_to_l_cam.translation() + mat_base_to_l_cam.rotation()*vec_person_position;
+
+    double depth = sqrt(vec_person_position.x()*vec_person_position.x() + vec_person_position.y()*vec_person_position.y());
+
+    if(depth < near_ref_)
+      near_points_num_++;
+  }
+  std_msgs::Int32 near_points_num_msgs;
+  near_points_num_msgs.data = near_points_num_;
+  near_points_num_pub_.publish(near_points_num_msgs);
 
   if(checkError() == false)
   {
@@ -323,23 +357,15 @@ void EricaPeopleDetecor::process2()
     return;
   }
 
-  erica_perception_msgs::PeoplePositionArray detected_people;
-  detected_people.img_height.data = img_height_;
-  detected_people.img_width.data = img_width_;
-
-  geometry_msgs::Point32 person;
-  std_msgs::Int32 size;
-  std_msgs::Int32 pixel_pos_x, pixel_pos_y;
-  std_msgs::Int32 box_width, box_height;
-  Eigen::Vector3d vec_person_position;
-  Eigen::Affine3d mat_base_to_l_cam;
-
-
   if(is_tracking_ == false)
   {
     if(detected_people_position_array_.bounding_boxes.size() == 0)
     {
       ROS_WARN("There is no people");
+      is_tracking_ = false;
+      tracked_person_.initialize();
+      person_pose_pub_.publish(people_position_msg_);
+      process_mutex_.unlock();
       return;
     }
   }
@@ -361,7 +387,6 @@ void EricaPeopleDetecor::process2()
     vec_person_position.coeffRef(1) = zed_cloud_.points[depthIdx].y;
     vec_person_position.coeffRef(2) = zed_cloud_.points[depthIdx].z;
 
-    mat_base_to_l_cam = tf2::transformToEigen(tf_base_to_l_cam_stamped_);
     vec_person_position = mat_base_to_l_cam.translation() + mat_base_to_l_cam.rotation()*vec_person_position;
 
     person.x = vec_person_position.x();
