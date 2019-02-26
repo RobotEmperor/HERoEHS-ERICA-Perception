@@ -208,7 +208,7 @@ int main(int argc, char **argv)
   erica_people_detector.refresh_time_threshold_ = 2.0;  //sec
   erica_people_detector.distance_threshold_ = 0.5; //meter
   erica_people_detector.max_distance_ = 5.0;
-  erica_people_detector.near_ref_ = 0.8;
+  erica_people_detector.near_ref_ = 0.7;
 
 
   erica_people_detector.initialize();

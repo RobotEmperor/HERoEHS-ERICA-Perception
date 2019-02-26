@@ -325,9 +325,9 @@ void EricaPeopleDetecor::process2()
   //ROS_INFO_STREAM("-----------1---------" << zed_cloud_.points.size());
   for(int idx = 0; idx < zed_cloud_.points.size(); idx++)
   {
-    vec_person_position.coeffRef(0) = zed_cloud_.points[idx].x;
-    vec_person_position.coeffRef(1) = zed_cloud_.points[idx].y;
-    vec_person_position.coeffRef(2) = zed_cloud_.points[idx].z;
+//    vec_person_position.coeffRef(0) = zed_cloud_.points[idx].x;
+//    vec_person_position.coeffRef(1) = zed_cloud_.points[idx].y;
+//    vec_person_position.coeffRef(2) = zed_cloud_.points[idx].z;
 
 //    if(std::isnan(zed_cloud_.points[idx].x))
 //      continue;
@@ -340,9 +340,9 @@ void EricaPeopleDetecor::process2()
 
     if(zed_cloud_.points[idx].x < near_ref_)
     {
-      vec_person_position = mat_base_to_l_cam.translation() + mat_base_to_l_cam.rotation()*vec_person_position;
-      double depth = sqrt(vec_person_position.x()*vec_person_position.x() + vec_person_position.y()*vec_person_position.y());
-      if(depth < near_ref_)
+//      vec_person_position = mat_base_to_l_cam.translation() + mat_base_to_l_cam.rotation()*vec_person_position;
+//      double depth = sqrt(vec_person_position.x()*vec_person_position.x() + vec_person_position.y()*vec_person_position.y());
+//      if(depth < near_ref_)
         near_points_num_++;
     }
   }
