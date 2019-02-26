@@ -588,11 +588,14 @@ void EricaPeopleDetecor::process2()
     else //near box size ref
     {
       int prev_box_size = detected_people.box_size[0].data;
+      if(prev_box_size > 100000)
+        tracked_person_.is_updated_ = true;
+
       for(int idx = 0; idx < detected_people.people_position.size(); idx++)
       {
         int curr_box_size = detected_people.box_size[idx].data;
 
-        if(curr_box_size > prev_box_size)
+        if((curr_box_size > prev_box_size) && (curr_box_size > 100000))
         {
           tracked_person_.curr_pos_.x = detected_people.people_position[idx].x;
           tracked_person_.curr_pos_.y = detected_people.people_position[idx].y;
