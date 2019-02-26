@@ -203,6 +203,12 @@ int main(int argc, char **argv)
   ros::NodeHandle nh;
 
   erica::EricaPeopleDetecor erica_people_detector;
+  erica_people_detector.pixel_distance_threshold_ = 50; //pixel coordinate
+  erica_people_detector.min_size_  = 20000;
+  erica_people_detector.refresh_time_threshold_ = 2.0;  //sec
+  erica_people_detector.distance_threshold_ = 0.5; //meter
+  erica_people_detector.max_distance_ = 5.0;
+
 
   erica_people_detector.initialize();
 
