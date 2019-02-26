@@ -669,7 +669,7 @@ void EricaPeopleDetecor::process2()
           return;
         }
       }
-      else
+      else //near updated
       {
         //      if(tracked_person_.is_near_ == true)
         //      {
@@ -679,7 +679,7 @@ void EricaPeopleDetecor::process2()
         //       }
         //      }
         double curr_dist = sqrt(tracked_person_.curr_pos_.x * tracked_person_.curr_pos_.x + tracked_person_.curr_pos_.y * tracked_person_.curr_pos_.y);
-        if((curr_dist > 0.5) && !(std::isnan(curr_dist)))
+        if((curr_dist > 0.5) && (!(std::isnan(curr_dist))))
         {
           tracked_person_.is_near_ = false;
           tracked_person_.near_time_sec_ = ros::Time::now().toSec();
