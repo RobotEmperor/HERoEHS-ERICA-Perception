@@ -143,8 +143,8 @@ void EricaPeopleDetecor::getDetectedPeoplePixelPositionCallback(const darknet_ro
 void EricaPeopleDetecor::getZedPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
 {
   process_mutex_.lock();
-  img_width_  = msg->width;
-  img_height_ = msg->height;
+  img_width_  = (msg->width);
+  img_height_ = (msg->height);
 
   // Image coordinates of the center pixel
   sensor_msgs::convertPointCloud2ToPointCloud(*msg, zed_cloud_);
@@ -205,7 +205,7 @@ void EricaPeopleDetecor::process()
   Eigen::Vector3d vec_person_position;
   Eigen::Affine3d mat_base_to_l_cam;
 
-  for(int idx = 0; idx < detected_people_position_array_.bounding_boxes.size(); idx++)
+  for(unsigned int idx = 0; idx < detected_people_position_array_.bounding_boxes.size(); idx++)
   {
     int u = (detected_people_position_array_.bounding_boxes[idx].xmin + detected_people_position_array_.bounding_boxes[idx].xmax)/2;
     int v = (detected_people_position_array_.bounding_boxes[idx].ymin + detected_people_position_array_.bounding_boxes[idx].ymax)/2;
@@ -323,7 +323,7 @@ void EricaPeopleDetecor::process2()
 
   near_points_num_ = 0;
   //ROS_INFO_STREAM("-----------1---------" << zed_cloud_.points.size());
-  for(int idx = 0; idx < zed_cloud_.points.size(); idx++)
+  for(unsigned int idx = 0; idx < zed_cloud_.points.size(); idx++)
   {
 //    vec_person_position.coeffRef(0) = zed_cloud_.points[idx].x;
 //    vec_person_position.coeffRef(1) = zed_cloud_.points[idx].y;
@@ -382,7 +382,7 @@ void EricaPeopleDetecor::process2()
     }
   }
 
-  for(int idx = 0; idx < detected_people_position_array_.bounding_boxes.size(); idx++)
+  for(unsigned int idx = 0; idx < detected_people_position_array_.bounding_boxes.size(); idx++)
   {
     int u = (detected_people_position_array_.bounding_boxes[idx].xmin + detected_people_position_array_.bounding_boxes[idx].xmax)/2;
     int v = (detected_people_position_array_.bounding_boxes[idx].ymin + detected_people_position_array_.bounding_boxes[idx].ymax)/2;
@@ -444,7 +444,7 @@ void EricaPeopleDetecor::process2()
     }
   }
 
-  for(int idx = 0; idx < detected_people.people_position.size(); idx++)
+  for(unsigned int idx = 0; idx < detected_people.people_position.size(); idx++)
   {
     ROS_INFO_STREAM("idx : " << idx << " "  << detected_people.people_position[idx].x <<
     " "  << detected_people.people_position[idx].y <<
