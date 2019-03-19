@@ -11,6 +11,8 @@
 #include <ros/ros.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_eigen/tf2_eigen.h>
+
+#include <std_msgs/String.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/point_cloud_conversion.h>
@@ -63,6 +65,7 @@ public:
 
   void initialize();
 
+  void getTrackingStartCommandCallback(const std_msgs::String::ConstPtr& msg);
   void getDetectedPeoplePixelPositionCallback(const darknet_ros_msgs::BoundingBoxes::ConstPtr& msg);
   void getZedPointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg);
   void getTFThreadFunc();
@@ -80,6 +83,8 @@ public:
   double_t distance_threshold_;
   double_t max_distance_;
 
+  double_t near_ref_;
+
 private:
   boost::thread   tf_thread_;
 
@@ -94,17 +99,22 @@ private:
   ros::Publisher robot_pose_pub_;
   erica_perception_msgs::PeoplePositionArray people_position_msg_;
 
+  bool tracking_start_;
   bool is_tracking_;
   bool is_initialized_;
   int32_t img_width_, img_height_;
+
+  int32_t near_points_num_;
 
   PersonTrackingInfo tracked_person_;
   std::vector<PersonTrackingInfo> people_buf_;
 
   ros::Subscriber detected_people_sub_;
   ros::Subscriber point_cloud_sub_;
+  ros::Subscriber tracking_start_sub_;
 
   ros::Publisher person_pose_pub_;
+  ros::Publisher near_points_num_pub_;
 
 };
 
